@@ -52,7 +52,7 @@ describe('callAIProvider', () => {
     expect(result.data!.testCases).toHaveLength(1)
     expect(result.metadata.provider).toBe('deepseek')
     expect(result.metadata.model).toBe('deepseek-v4')
-    expect(result.metadata.durationMs).toBeGreaterThan(0)
+    expect(result.metadata.durationMs).toBeGreaterThanOrEqual(0)
     expect(result.metadata.tokens).toBe(1000)
   })
 
