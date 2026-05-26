@@ -26,8 +26,6 @@ interface Result {
 }
 
 const MAX_CHARS = 10000;
-const MAX_IMAGES = 3;
-const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
 
 const EXAMPLES = [
   {
@@ -49,7 +47,6 @@ const EXAMPLES = [
 
 export default function Home() {
   const [text, setText] = useState("");
-  const [images, setImages] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState<Result | null>(null);
@@ -79,46 +76,6 @@ export default function Home() {
     }
   }, [result]);
 
-  // Ctrl+V paste images
-  useEffect(() => {
-    const handlePaste = (e: ClipboardEvent) => {
-      if (!e.clipboardData?.items) return;
-      for (const item of e.clipboardData.items) {
-        if (!item.type.startsWith("image/")) continue;
-        e.preventDefault();
-        const file = item.getAsFile();
-        if (!file) continue;
-
-        if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
-          setToast("仅支持 PNG / JPG / WebP 格式");
-          setTimeout(() => setToast(""), 2000);
-          return;
-        }
-        if (file.size > MAX_IMAGE_SIZE) {
-          setToast("图片过大（最大 5MB）");
-          setTimeout(() => setToast(""), 2000);
-          return;
-        }
-        setImages((prev) => {
-          if (prev.length >= MAX_IMAGES) {
-            setToast(`最多 ${MAX_IMAGES} 张图片`);
-            setTimeout(() => setToast(""), 2000);
-            return prev;
-          }
-          const reader = new FileReader();
-          reader.onload = () => {
-            const base64 = (reader.result as string).split(",")[1];
-            setImages((p) => [...p, base64]);
-          };
-          reader.readAsDataURL(file);
-          return prev;
-        });
-      }
-    };
-    document.addEventListener("paste", handlePaste);
-    return () => document.removeEventListener("paste", handlePaste);
-  }, []);
-
   const handleSubmit = useCallback(async () => {
     if (!text.trim()) {
       setError("请输入需求描述");
@@ -132,7 +89,7 @@ export default function Home() {
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: text.slice(0, MAX_CHARS), images }),
+        body: JSON.stringify({ text: text.slice(0, MAX_CHARS) }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -145,7 +102,7 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
-  }, [text, images]);
+  }, [text]);
 
   const updateTestCase = useCallback(
     (id: string, field: string, value: string | string[]) => {
@@ -212,10 +169,6 @@ export default function Home() {
     }
   }, [result]);
 
-  const removeImage = (idx: number) => {
-    setImages((prev) => prev.filter((_, i) => i !== idx));
-  };
-
   const charCount = text.length;
   const isOver = charCount > MAX_CHARS;
 
@@ -239,29 +192,7 @@ export default function Home() {
         />
         <div className="flex justify-between items-center mt-2 text-xs text-zinc-400">
           <span>{charCount} / {MAX_CHARS}{isOver && " — 已超限，提交时自动截断"}</span>
-          <span className="text-zinc-500">Ctrl+V 粘贴截图</span>
         </div>
-
-        {/* Image thumbnails */}
-        {images.length > 0 && (
-          <div className="flex gap-2 mt-3 flex-wrap">
-            {images.map((img, i) => (
-              <div key={i} className="relative group">
-                <img
-                  src={`data:image/png;base64,${img}`}
-                  alt={`截图 ${i + 1}`}
-                  className="w-20 h-14 object-cover rounded border border-zinc-200"
-                />
-                <button
-                  onClick={() => removeImage(i)}
-                  className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                >
-                  x
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
 
         <button
           onClick={handleSubmit}
