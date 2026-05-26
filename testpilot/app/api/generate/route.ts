@@ -3,22 +3,31 @@ import { checkRateLimit } from '@/lib/rate-limit'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 
-function getProviderConfig() {
+function getProviderConfig(hasImages: boolean) {
+  // Images present → use vision model, text only → use text model
+  const prefix = hasImages ? 'AI_VISION_' : 'AI_'
+  const fallback = hasImages
+    ? {
+        name: process.env.AI_VISION_FALLBACK_PROVIDER,
+        baseURL: process.env.AI_VISION_FALLBACK_BASE_URL,
+        apiKey: process.env.AI_VISION_FALLBACK_API_KEY,
+        model: process.env.AI_VISION_FALLBACK_MODEL,
+      }
+    : {
+        name: process.env.AI_FALLBACK_PROVIDER,
+        baseURL: process.env.AI_FALLBACK_BASE_URL,
+        apiKey: process.env.AI_FALLBACK_API_KEY,
+        model: process.env.AI_FALLBACK_MODEL,
+      }
+
   return {
     primary: {
-      name: process.env.AI_PROVIDER || 'deepseek',
-      baseURL: process.env.AI_BASE_URL || 'https://api.deepseek.com/v1',
-      apiKey: process.env.AI_API_KEY || '',
-      model: process.env.AI_MODEL || 'deepseek-v4',
+      name: process.env[prefix + 'PROVIDER'] || 'deepseek',
+      baseURL: process.env[prefix + 'BASE_URL'] || 'https://api.deepseek.com/v1',
+      apiKey: process.env[prefix + 'API_KEY'] || '',
+      model: process.env[prefix + 'MODEL'] || 'deepseek-chat',
     },
-    fallback: process.env.AI_FALLBACK_BASE_URL
-      ? {
-          name: process.env.AI_FALLBACK_PROVIDER || 'qwen',
-          baseURL: process.env.AI_FALLBACK_BASE_URL,
-          apiKey: process.env.AI_FALLBACK_API_KEY || '',
-          model: process.env.AI_FALLBACK_MODEL || 'qwen3.5-plus',
-        }
-      : undefined,
+    fallback: fallback.baseURL ? fallback : undefined,
   }
 }
 
@@ -67,7 +76,8 @@ export async function POST(request: Request): Promise<Response> {
     // Rate limiter down → allow
   }
 
-  const providerConfig = getProviderConfig()
+  const hasImages = images.length > 0
+  const providerConfig = getProviderConfig(hasImages)
   const systemPrompt = loadSystemPrompt()
 
   const result = await callAIProvider({
