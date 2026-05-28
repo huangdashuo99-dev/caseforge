@@ -48,8 +48,8 @@ describe('callAIProvider', () => {
       images: [],
     })
 
-    expect(result.success).toBe(true)
-    expect(result.data!.testCases).toHaveLength(1)
+    if (!result.success) throw new Error('expected success')
+    expect(result.data.testCases).toHaveLength(1)
     expect(result.metadata.provider).toBe('deepseek')
     expect(result.metadata.model).toBe('deepseek-v4')
     expect(result.metadata.durationMs).toBeGreaterThanOrEqual(0)
@@ -122,7 +122,7 @@ describe('callAIProvider', () => {
       images: [],
     })
 
-    expect(result.success).toBe(true)
+    if (!result.success) throw new Error('expected success')
     expect(result.metadata.provider).toBe('qwen')
     expect(result.metadata.model).toBe('qwen3.5-plus')
   })
@@ -138,7 +138,7 @@ describe('callAIProvider', () => {
       images: [],
     })
 
-    expect(result.success).toBe(false)
+    if (result.success) throw new Error('expected error')
     expect(result.error).toContain('服务暂时不可用')
   })
 

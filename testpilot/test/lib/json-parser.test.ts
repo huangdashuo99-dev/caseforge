@@ -9,13 +9,6 @@ const minimalValidJson = () =>
     fuzzyPoints: [],
   })
 
-const minimalValidObj = () => ({
-  title: '测试',
-  summary: '',
-  testCases: [{ id: 'TC-001', title: '用例', precondition: '', steps: [''], expected: [''], priority: 'P0', type: '功能' }],
-  fuzzyPoints: [],
-})
-
 describe('parseTestCases', () => {
   // === HAPPY PATH ===
   it('parses valid JSON with all fields', () => {
@@ -36,10 +29,10 @@ describe('parseTestCases', () => {
       fuzzyPoints: [],
     })
     const result = parseTestCases(input)
-    expect(result.success).toBe(true)
-    expect(result.data!.title).toBe('用户登录功能')
-    expect(result.data!.testCases).toHaveLength(1)
-    expect(result.data!.testCases[0].expected).toEqual(['页面正常加载', '输入框接受输入', '跳转到首页'])
+    if (!result.success) throw new Error('expected success')
+    expect(result.data.title).toBe('用户登录功能')
+    expect(result.data.testCases).toHaveLength(1)
+    expect(result.data.testCases[0].expected).toEqual(['页面正常加载', '输入框接受输入', '跳转到首页'])
   })
 
   it('handles multiple test cases', () => {
@@ -53,8 +46,8 @@ describe('parseTestCases', () => {
       fuzzyPoints: [],
     })
     const result = parseTestCases(input)
-    expect(result.success).toBe(true)
-    expect(result.data!.testCases).toHaveLength(2)
+    if (!result.success) throw new Error('expected success')
+    expect(result.data.testCases).toHaveLength(2)
   })
 
   // === MARKDOWN CODE FENCE STRIPPING ===
@@ -62,8 +55,8 @@ describe('parseTestCases', () => {
     const json = minimalValidJson()
     const input = '```json\n' + json + '\n```'
     const result = parseTestCases(input)
-    expect(result.success).toBe(true)
-    expect(result.data!.title).toBe('测试')
+    if (!result.success) throw new Error('expected success')
+    expect(result.data.title).toBe('测试')
   })
 
   it('strips ``` code fences without language', () => {
@@ -83,49 +76,49 @@ describe('parseTestCases', () => {
   it('fixes trailing commas in objects', () => {
     const input = `{"title":"测试","summary":"","testCases":[{"id":"TC-001","title":"用例","precondition":"","steps":[""],"expected":[""],"priority":"P0","type":"功能",}],"fuzzyPoints":[]}`
     const result = parseTestCases(input)
-    expect(result.success).toBe(true)
-    expect(result.data!.testCases[0].title).toBe('用例')
+    if (!result.success) throw new Error('expected success')
+    expect(result.data.testCases[0].title).toBe('用例')
   })
 
   // === SCHEMA VALIDATION ===
   it('rejects missing title field', () => {
     const input = JSON.stringify({ summary: '', testCases: [], fuzzyPoints: [] })
     const result = parseTestCases(input)
-    expect(result.success).toBe(false)
+    if (result.success) throw new Error('expected error')
     expect(result.error).toContain('title')
   })
 
   it('rejects missing testCases array', () => {
     const input = JSON.stringify({ title: '测试', summary: '', fuzzyPoints: [] })
     const result = parseTestCases(input)
-    expect(result.success).toBe(false)
+    if (result.success) throw new Error('expected error')
     expect(result.error).toContain('testCases')
   })
 
   it('rejects empty testCases with warning', () => {
     const input = JSON.stringify({ title: '测试', summary: '', testCases: [], fuzzyPoints: [] })
     const result = parseTestCases(input)
-    expect(result.success).toBe(false)
+    if (result.success) throw new Error('expected error')
     expect(result.error).toContain('未生成')
   })
 
   // === CONTENT REFUSAL DETECTION ===
   it('detects AI refusal in Chinese', () => {
     const result = parseTestCases('抱歉，我无法生成这个需求的测试用例，因为内容涉及敏感信息。')
-    expect(result.success).toBe(false)
+    if (result.success) throw new Error('expected error')
     expect(result.refusal).toBe(true)
     expect(result.error).toContain('无法处理')
   })
 
   it('detects AI refusal in English', () => {
     const result = parseTestCases('I cannot generate test cases for this requirement as it contains')
-    expect(result.success).toBe(false)
+    if (result.success) throw new Error('expected error')
     expect(result.refusal).toBe(true)
   })
 
   it('detects AI asking for more details', () => {
     const result = parseTestCases('好的，作为资深 QA 测试专家。请提供您的需求描述。')
-    expect(result.success).toBe(false)
+    if (result.success) throw new Error('expected error')
     expect(result.refusal).toBe(true)
     expect(result.error).toContain('不够详细')
   })
@@ -133,13 +126,13 @@ describe('parseTestCases', () => {
   // === GARBAGE INPUT ===
   it('rejects completely invalid text gracefully', () => {
     const result = parseTestCases('这是一段随意的文字，完全不是 JSON 格式')
-    expect(result.success).toBe(false)
+    if (result.success) throw new Error('expected error')
     expect(result.refusal).toBe(false)
   })
 
   it('handles empty string', () => {
     const result = parseTestCases('')
-    expect(result.success).toBe(false)
+    if (result.success) throw new Error('expected error')
     expect(result.error).toBeDefined()
   })
 
@@ -179,8 +172,8 @@ describe('parseTestCases', () => {
       fuzzyPoints: [],
     })
     const result = parseTestCases(input)
-    expect(result.success).toBe(true)
-    expect(result.data!.testCases[0].steps[1]).toContain('中文引号')
+    if (!result.success) throw new Error('expected success')
+    expect(result.data.testCases[0].steps[1]).toContain('中文引号')
   })
 
   it('strips type labels from test case titles', () => {
@@ -196,10 +189,10 @@ describe('parseTestCases', () => {
       fuzzyPoints: [],
     })
     const result = parseTestCases(input)
-    expect(result.success).toBe(true)
-    expect(result.data!.testCases[0].title).toBe('正常登录')
-    expect(result.data!.testCases[1].title).toBe('输入超长密码')
-    expect(result.data!.testCases[2].title).toBe('密码为空')
-    expect(result.data!.testCases[3].title).toBe('正常退出 — 无标签')
+    if (!result.success) throw new Error('expected success')
+    expect(result.data.testCases[0].title).toBe('正常登录')
+    expect(result.data.testCases[1].title).toBe('输入超长密码')
+    expect(result.data.testCases[2].title).toBe('密码为空')
+    expect(result.data.testCases[3].title).toBe('正常退出 — 无标签')
   })
 })
