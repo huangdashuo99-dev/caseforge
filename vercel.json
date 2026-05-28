@@ -1,5 +1,0 @@
-{
-  "installCommand": "cd testpilot && npm install",
-  "buildCommand": "cd testpilot && npm run build",
-  "outputDirectory": "testpilot/.next"
-}
