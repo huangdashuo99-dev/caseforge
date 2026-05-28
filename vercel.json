@@ -1,3 +1,5 @@
 {
-  "rootDirectory": "testpilot"
+  "buildCommand": "cd testpilot && next build",
+  "installCommand": "cd testpilot && npm install",
+  "outputDirectory": "testpilot/.next"
 }
