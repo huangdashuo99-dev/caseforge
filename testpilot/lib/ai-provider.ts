@@ -37,6 +37,45 @@ export interface AIResultError {
 
 export type AIResult = AIResultSuccess | AIResultError
 
+const PRIORITY_TARGETS: Record<string, number> = { P0: 0.05, P1: 0.15, P2: 0.30, P3: 0.45, P4: 0.05 }
+const PRIORITY_TOLERANCE = 0.03
+
+function validatePriorityDistribution(testCases: { priority: string }[]): {
+  valid: boolean
+  message: string
+  counts: Record<string, number>
+  expected: Record<string, number>
+} {
+  const n = testCases.length
+  if (n < 5) return { valid: true, message: '', counts: {}, expected: {} }
+
+  const counts: Record<string, number> = { P0: 0, P1: 0, P2: 0, P3: 0, P4: 0 }
+  for (const tc of testCases) {
+    if (counts[tc.priority] !== undefined) counts[tc.priority]++
+  }
+
+  const issues: string[] = []
+  for (const [p, target] of Object.entries(PRIORITY_TARGETS)) {
+    const actual = counts[p] / n
+    const lower = p === 'P4' ? 0 : target - PRIORITY_TOLERANCE
+    const upper = target + PRIORITY_TOLERANCE
+    if (actual < lower) {
+      issues.push(`${p}实际${counts[p]}条(${Math.round(actual * 100)}%)，目标${Math.round(target * 100)}%，偏少`)
+    } else if (actual > upper) {
+      issues.push(`${p}实际${counts[p]}条(${Math.round(actual * 100)}%)，目标${Math.round(target * 100)}%，偏多`)
+    }
+  }
+
+  if (issues.length === 0) return { valid: true, message: '', counts, expected: {} }
+
+  const expected: Record<string, number> = {}
+  for (const p of ['P0', 'P1', 'P2', 'P3', 'P4']) {
+    expected[p] = Math.max(p === 'P0' ? 1 : 0, Math.round(PRIORITY_TARGETS[p] * n))
+  }
+
+  return { valid: false, message: issues.join('；'), counts, expected }
+}
+
 function isTimeoutError(e: unknown): boolean {
   return e instanceof Error && (e.message.includes('timeout') || e.message.includes('timed out') || e.name === 'AbortError')
 }
@@ -67,6 +106,7 @@ async function callOnce(
     model: config.model,
     messages,
     temperature: 0.3,
+    max_tokens: 16384,
   })
 
   return {
@@ -83,14 +123,15 @@ async function tryProvider(
 ): Promise<{ success: true; data: TestCaseResult; tokens: number } | { success: false; error: string; tokens: number }> {
   let lastError = ''
   let tokens = 0
+  let promptText = userText
 
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const result = await callOnce(config, systemPrompt, userText, images)
+      const result = await callOnce(config, systemPrompt, promptText, images)
       tokens = result.tokens
 
       if (!result.content || !result.content.trim()) {
-        lastError = 'AI 返回内容为空'
+        lastError = '返回内容为空'
         continue
       }
 
@@ -100,11 +141,24 @@ async function tryProvider(
         continue
       }
 
+      const distCheck = validatePriorityDistribution(parsed.data.testCases)
+      if (!distCheck.valid && attempt === 0) {
+        const exp = distCheck.expected
+        promptText = userText + '\n\n[重要系统指令] 上一版优先级分布不达标：' + distCheck.message +
+          '。本次必须调整优先级分布为：P0=' + exp.P0 + '条、P1=' + exp.P1 + '条、P2=' + exp.P2 + '条、P3=' + exp.P3 + '条、P4=' + exp.P4 + '条。用例内容和数量保持，仅调整优先级字段。'
+        lastError = '优先级分布: ' + distCheck.message
+        continue
+      }
+
+      if (!distCheck.valid) {
+        console.warn('[TestPilot] Priority divergence accepted: ' + distCheck.message + '. Counts: ' + JSON.stringify(distCheck.counts))
+      }
+
       return { success: true, data: parsed.data, tokens }
     } catch (e) {
       lastError = e instanceof Error ? e.message : '未知错误'
       if (!isTimeoutError(e)) {
-        break // Don't retry non-timeout errors
+        break
       }
     }
   }
@@ -148,11 +202,22 @@ export async function callAIProvider(input: CallAIProviderInput): Promise<AIResu
         },
       }
     }
+
+    return {
+      success: false,
+      error: `服务暂时不可用，请稍后重试。错误详情: ${primaryResult.error}`,
+      metadata: {
+        provider: primary.name,
+        model: primary.model,
+        durationMs: Date.now() - startTime,
+        tokens: 0,
+      },
+    }
   }
 
   return {
     success: false,
-    error: `AI 服务暂时不可用，请稍后重试。`,
+    error: `服务暂时不可用，请稍后重试。错误详情: ${primaryResult.error}`,
     metadata: {
       provider: primary.name,
       model: primary.model,

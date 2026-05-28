@@ -4,21 +4,9 @@ import { readFileSync } from 'fs'
 import { join } from 'path'
 
 function getProviderConfig(hasImages: boolean) {
-  // Images present → use vision model, text only → use text model
   const prefix = hasImages ? 'AI_VISION_' : 'AI_'
-  const fallback = hasImages
-    ? {
-        name: process.env.AI_VISION_FALLBACK_PROVIDER,
-        baseURL: process.env.AI_VISION_FALLBACK_BASE_URL,
-        apiKey: process.env.AI_VISION_FALLBACK_API_KEY,
-        model: process.env.AI_VISION_FALLBACK_MODEL,
-      }
-    : {
-        name: process.env.AI_FALLBACK_PROVIDER,
-        baseURL: process.env.AI_FALLBACK_BASE_URL,
-        apiKey: process.env.AI_FALLBACK_API_KEY,
-        model: process.env.AI_FALLBACK_MODEL,
-      }
+  const fbPrefix = hasImages ? 'AI_VISION_FALLBACK_' : 'AI_FALLBACK_'
+  const fbBaseURL = process.env[fbPrefix + 'BASE_URL']
 
   return {
     primary: {
@@ -27,7 +15,14 @@ function getProviderConfig(hasImages: boolean) {
       apiKey: process.env[prefix + 'API_KEY'] || '',
       model: process.env[prefix + 'MODEL'] || 'deepseek-chat',
     },
-    fallback: fallback.baseURL ? fallback : undefined,
+    fallback: fbBaseURL
+      ? {
+          name: process.env[fbPrefix + 'PROVIDER'] || '',
+          baseURL: fbBaseURL,
+          apiKey: process.env[fbPrefix + 'API_KEY'] || '',
+          model: process.env[fbPrefix + 'MODEL'] || '',
+        }
+      : undefined,
   }
 }
 
@@ -37,8 +32,8 @@ function loadSystemPrompt(): string {
     return readFileSync(promptPath, 'utf-8')
   } catch {
     return `你是资深 QA 测试专家。根据用户输入的需求描述，生成完整的结构化测试用例。
-每个用例必须包含：编号、标题、前置条件、步骤（数组）、预期结果、优先级（P0-P3）、类型（功能/边界值/异常/兼容性/性能）。
-必须覆盖正向功能、边界值、异常场景各至少 1 条。
+每个用例必须包含：用例编号、用例标题、前置条件、测试步骤（数组）、预期结果、优先级（P0-P4）、类型（功能/边界值/异常/兼容性/性能）。
+必须覆盖正向功能、边界值、异常场景各至少 1 条。上限不超过 66 条。
 如果需求中存在模糊或自相矛盾的地方，在 fuzzyPoints 字段中标注。`
   }
 }
@@ -55,6 +50,10 @@ export async function POST(request: Request): Promise<Response> {
 
   if (!text || !text.trim()) {
     return Response.json({ error: '请输入需求描述' }, { status: 400 })
+  }
+
+  if (text.trim().length < 10) {
+    return Response.json({ error: '需求描述过短（少于 10 个字），请提供更具体的功能描述' }, { status: 400 })
   }
 
   if (text.length > 10000) {
@@ -91,6 +90,8 @@ export async function POST(request: Request): Promise<Response> {
   if (!result.success) {
     return Response.json({ error: result.error }, { status: 500 })
   }
+
+  console.log(`[TestPilot] ${result.metadata.provider}/${result.metadata.model} · ${(result.metadata.durationMs / 1000).toFixed(1)}s · ${result.metadata.tokens} tokens`)
 
   return Response.json({
     title: result.data.title,

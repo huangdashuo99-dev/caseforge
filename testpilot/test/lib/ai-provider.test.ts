@@ -139,7 +139,7 @@ describe('callAIProvider', () => {
     })
 
     expect(result.success).toBe(false)
-    expect(result.error).toContain('AI 服务暂时不可用')
+    expect(result.error).toContain('服务暂时不可用')
   })
 
   it('returns error when primary fails and no fallback', async () => {

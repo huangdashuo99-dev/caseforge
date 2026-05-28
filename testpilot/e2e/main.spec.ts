@@ -40,7 +40,7 @@ test.describe("TestPilot", () => {
       route.fulfill({
         status: 500,
         contentType: "application/json",
-        body: JSON.stringify({ error: "AI 服务暂时不可用" }),
+        body: JSON.stringify({ error: "服务暂时不可用" }),
       })
     );
 
@@ -50,7 +50,7 @@ test.describe("TestPilot", () => {
     await page.click("text=生成测试用例");
 
     await expect(page.locator("text=生成失败")).toBeVisible();
-    await expect(page.locator("text=AI 服务暂时不可用")).toBeVisible();
+    await expect(page.locator("text=服务暂时不可用")).toBeVisible();
     await expect(page.locator("text=重试")).toBeVisible();
   });
 

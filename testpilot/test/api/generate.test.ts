@@ -41,7 +41,7 @@ describe('POST /api/generate', () => {
         title: '用户登录功能',
         summary: '测试登录流程',
         testCases: [
-          { id: 'TC-001', title: '正常登录', precondition: '', steps: [], expected: '', priority: 'P0', type: '功能' },
+          { id: 'TC-001', title: '正常登录', precondition: '', steps: [], expected: [''], priority: 'P0', type: '功能' },
         ],
         fuzzyPoints: [],
       },
@@ -71,6 +71,11 @@ describe('POST /api/generate', () => {
     expect(response.status).toBe(400)
   })
 
+  it('returns 400 when text is fewer than 10 characters', async () => {
+    const response = await POST(createRequest({ text: '测试', images: [] }))
+    expect(response.status).toBe(400)
+  })
+
   it('returns 400 when text exceeds 10000 characters', async () => {
     const response = await POST(createRequest({ text: 'x'.repeat(10001), images: [] }))
     expect(response.status).toBe(400)
@@ -79,7 +84,7 @@ describe('POST /api/generate', () => {
   it('accepts text at exactly 10000 characters', async () => {
     mockCallAI.mockResolvedValueOnce({
       success: true,
-      data: { title: '测试', summary: '', testCases: [{ id: 'TC-001', title: '用例', precondition: '', steps: [], expected: '', priority: 'P0', type: '功能' }], fuzzyPoints: [] },
+      data: { title: '测试', summary: '', testCases: [{ id: 'TC-001', title: '用例', precondition: '', steps: [], expected: [''], priority: 'P0', type: '功能' }], fuzzyPoints: [] },
       metadata: { provider: 'deepseek', model: 'v4', durationMs: 100, tokens: 100 },
     })
 
@@ -98,7 +103,7 @@ describe('POST /api/generate', () => {
     mockRateLimit.mockRejectedValueOnce(new Error('KV connection error'))
     mockCallAI.mockResolvedValueOnce({
       success: true,
-      data: { title: '测试', summary: '', testCases: [{ id: 'TC-001', title: '用例', precondition: '', steps: [], expected: '', priority: 'P0', type: '功能' }], fuzzyPoints: [] },
+      data: { title: '测试', summary: '', testCases: [{ id: 'TC-001', title: '用例', precondition: '', steps: [], expected: [''], priority: 'P0', type: '功能' }], fuzzyPoints: [] },
       metadata: { provider: 'deepseek', model: 'v4', durationMs: 100, tokens: 100 },
     })
 
@@ -107,14 +112,14 @@ describe('POST /api/generate', () => {
   })
 
   it('returns 400 when more than 3 images', async () => {
-    const response = await POST(createRequest({ text: '测试', images: ['img1', 'img2', 'img3', 'img4'] }))
+    const response = await POST(createRequest({ text: '用户登录功能需求描述', images: ['img1', 'img2', 'img3', 'img4'] }))
     expect(response.status).toBe(400)
   })
 
   it('returns 500 when AI provider fails', async () => {
     mockCallAI.mockResolvedValueOnce({
       success: false,
-      error: 'AI 服务暂时不可用',
+      error: '服务暂时不可用',
       metadata: { provider: 'deepseek', model: 'v4', durationMs: 30000, tokens: 0 },
     })
 
