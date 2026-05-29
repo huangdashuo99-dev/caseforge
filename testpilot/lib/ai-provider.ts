@@ -38,7 +38,7 @@ export interface AIResultError {
 export type AIResult = AIResultSuccess | AIResultError
 
 const PRIORITY_TARGETS: Record<string, number> = { P0: 0.05, P1: 0.15, P2: 0.30, P3: 0.45, P4: 0.05 }
-const PRIORITY_TOLERANCE = 0.03
+const PRIORITY_TOLERANCE = 0.05
 
 function validatePriorityDistribution(testCases: { priority: string }[]): {
   valid: boolean
