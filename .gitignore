@@ -37,6 +37,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# gstack
+.gstack/
+
 # test output
 /test-results/
 

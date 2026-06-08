@@ -1,29 +1,29 @@
-# TestPilot
+# TestPilot — AI 测试用例生成器
 
-AI 驱动的测试用例生成器 — 粘贴 PRD，秒出结构化用例。
-
-## 为什么需要 TestPilot
-
-一个中等复杂度的功能，QA 工程师通常需要花一整天手写 50-100 条测试用例，质量高度依赖个人经验。TestPilot 把「从 0 到草稿」压缩到秒级，让 QA 把精力花在评审和优化上，而不是从空白页开始。
-
-## 效果预览
+> 粘贴需求文档，30 秒生成覆盖功能、边界、异常的完整测试用例
 
 ![TestPilot 效果演示](public/demo.png)
 
-## 核心功能
+## 为什么需要它
 
-- **需求 → 用例**：粘贴 PRD 或需求描述，AI 自动生成结构化测试用例（含编号、标题、前置条件、步骤、预期结果、优先级、类型）
-- **截图辅助**：支持粘贴截图，多模态分析需求文档中的 UI 原型
-- **模糊点检测**：AI 自动标注需求中的歧义或矛盾之处，并向产品提出确认建议
-- **在线编辑**：生成后可在表格中直接修改标题、步骤、预期结果、优先级、类型
-- **多格式导出**：一键复制格式化文本，或下载带样式的 Excel (.xlsx)
-- **多模型可插拔**：基于 OpenAI SDK 标准协议，改环境变量即可在 DeepSeek、GPT、Claude、Qwen 等模型间切换
+一个中等复杂度的功能，QA 通常要花**一整天**手写 50–100 条测试用例，质量高度依赖个人经验。TestPilot 把「从 0 到草稿」压缩到秒级——AI 负责覆盖广度，你负责评审和精调。
+
+## ✨ 核心功能
+
+| # | 能力 | 说明 |
+|---|---|---|
+| 1 | **需求秒变用例** | 粘贴 PRD 或需求描述（最多 10,000 字），AI 自动生成结构化测试用例（编号、标题、前置条件、步骤、预期结果、优先级、类型） |
+| 2 | **模糊点检测** | AI 自动标注需求中的歧义或矛盾，并给出建议向产品经理提问的问题 |
+| 3 | **行内编辑** | 生成后可在表格中直接修改标题、步骤、预期结果、优先级、类型 |
+| 4 | **Excel 导出** | 一键复制格式化文本，或下载带粗体表头的 `.xlsx` 文件 |
+| 5 | **优先级自检** | 后端校验 P0–P4 分布是否符合预期比例，偏差时自动重新生成 |
+| 6 | **模型无关** | 基于 OpenAI SDK 标准协议，改一行环境变量即可在 DeepSeek、GPT、Claude、Qwen 间切换 |
 
 ## 快速开始
 
 ```bash
 git clone https://github.com/huangdashuo99-dev/caseforge.git
-cd caseforge/testpilot
+cd caseforge
 npm install
 ```
 
@@ -34,11 +34,6 @@ npm install
 AI_API_KEY=your-api-key
 AI_BASE_URL=https://api.deepseek.com/v1
 AI_MODEL=deepseek-chat
-
-# 可选 — 多模态模型（处理截图时使用，不配置则回退到文本模型）
-AI_VISION_API_KEY=your-vision-api-key
-AI_VISION_BASE_URL=https://api.openai.com/v1
-AI_VISION_MODEL=gpt-4o
 
 # 可选 — 主模型失败时自动切换备用模型
 AI_FALLBACK_API_KEY=your-fallback-key
@@ -59,9 +54,6 @@ npm run dev
 | `AI_API_KEY` | 是 | AI 服务商的 API Key |
 | `AI_BASE_URL` | 否 | API 地址（默认 DeepSeek） |
 | `AI_MODEL` | 否 | 模型名称（默认 `deepseek-chat`） |
-| `AI_VISION_API_KEY` | 否 | 多模态模型 API Key（处理截图） |
-| `AI_VISION_BASE_URL` | 否 | 多模态 API 地址 |
-| `AI_VISION_MODEL` | 否 | 多模态模型名称 |
 | `AI_FALLBACK_API_KEY` | 否 | 备用模型 API Key（主模型失败时自动切换） |
 | `AI_FALLBACK_BASE_URL` | 否 | 备用模型 API 地址 |
 | `AI_FALLBACK_MODEL` | 否 | 备用模型名称 |
@@ -84,7 +76,6 @@ npm run dev
 ## 项目结构
 
 ```
-testpilot/
 ├── app/
 │   ├── page.tsx                  # 主页面（输入、生成、编辑、导出）
 │   ├── layout.tsx                # 根布局
@@ -116,8 +107,8 @@ npm run lint       # 代码检查
 
 ## 工作原理
 
-1. 用户在页面输入需求文本（可选粘贴截图）
-2. 前端 POST 到 `/api/generate`，附带文本和图片
+1. 用户在页面输入需求文本
+2. 前端 POST 到 `/api/generate`，附带文本
 3. 服务端调用 AI 模型，使用精心调校的系统提示词生成结构化 JSON
 4. JSON 经容错解析器处理（去除 markdown 标记、修复尾部逗号、校验 schema）
 5. 校验优先级分布（P0~P4 符合预设比例），不达标自动重试
