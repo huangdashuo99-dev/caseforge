@@ -1,0 +1,128 @@
+{
+  "meta": {
+    "title": "TestPilot — 输入需求，即刻生成结构化用例",
+    "description": "输入需求，自动生成结构化测试用例。覆盖正向、边界值、异常场景。"
+  },
+  "header": {
+    "subtitle": "测试用例生成器 — 输入需求，即刻生成结构化用例",
+    "tagline": "输入需求，自动生成结构化测试用例。覆盖正向、边界值、异常场景。"
+  },
+  "input": {
+    "placeholder": "粘贴你的 PRD 或需求描述 …\n\n例如：用户下单页面，支持优惠码叠加使用，最多2张，每张有最低消费门槛。",
+    "submit": "生成测试用例",
+    "submitting": "正在分析需求并生成用例…",
+    "error": "请输入需求描述",
+    "charOver": " — 已超限，提交时自动截断"
+  },
+  "loading": {
+    "message": "正在分析需求并生成用例…"
+  },
+  "error": {
+    "title": "生成失败",
+    "fallback": "生成失败，请重试",
+    "networkError": "网络错误，请检查连接后重试",
+    "retry": "重试"
+  },
+  "toolbar": {
+    "new": "新需求",
+    "copy": "复制用例",
+    "download": "下载 Excel"
+  },
+  "table": {
+    "id": "用例编号",
+    "title": "用例标题",
+    "priority": "优先级",
+    "type": "类型",
+    "action": "操作",
+    "edit": "编辑",
+    "collapse": "收起"
+  },
+  "edit": {
+    "heading": "编辑 {id}",
+    "caseTitle": "用例标题",
+    "precondition": "前置条件",
+    "steps": "测试步骤",
+    "expected": "预期结果",
+    "addStep": "+ 添加测试步骤",
+    "addExpected": "+ 添加预期",
+    "priority": "优先级",
+    "type": "类型",
+    "deleteStep": "删除此测试步骤",
+    "deleteExpected": "删除此预期"
+  },
+  "types": ["功能", "边界值", "异常", "兼容性", "性能"],
+  "fuzzy": {
+    "title": "规则模糊点",
+    "suggestion": "建议：{suggestion}"
+  },
+  "features": {
+    "title": "核心能力",
+    "instant": {
+      "name": "即时生成",
+      "desc": "粘贴 PRD 或需求描述，AI 自动解析并生成结构化测试用例，覆盖功能、边界值、异常等场景。"
+    },
+    "edit": {
+      "name": "内联编辑",
+      "desc": "点击表格中的任意用例即可展开编辑面板，直接修改标题、步骤、预期结果、优先级和类型，无需弹窗或跳转。"
+    },
+    "fuzzy": {
+      "name": "规则盲区识别",
+      "desc": "自动检测需求中的模糊地带与未定义边界，标记出来并给出补充建议，避免遗漏关键测试场景。"
+    },
+    "export": {
+      "name": "一键导出",
+      "desc": "支持复制 Markdown 文本和下载 Excel 文件，直接粘贴到 TAPD/Jira 或用 Excel 二次编辑。"
+    }
+  },
+  "examples": {
+    "title": "示例",
+    "intro": "以下是一些真实的输入输出示例，帮你了解 TestPilot 能做什么：",
+    "input": "输入：",
+    "output": "输出：",
+    "items": [
+      {
+        "title": "用户登录功能",
+        "input": "用户登录功能需求：支持用户名+密码登录。连续输错密码3次，锁定账号30分钟。支持\"记住我\"功能，有效期7天。",
+        "output": "生成 23 条用例，覆盖正常登录、密码错误、账号锁定、记住我、密码为空、SQL注入防护等场景。"
+      },
+      {
+        "title": "订单优惠券叠加",
+        "input": "用户下单页面，支持输入优惠码。优惠码可叠加使用，最多叠加2张。每张优惠码有最低消费门槛。",
+        "output": "生成 18 条用例，覆盖单张/双张使用、门槛判断、叠加超限、过期码、并发使用等场景。"
+      },
+      {
+        "title": "权限管理模块",
+        "input": "管理员可以为子账号分配角色权限。角色包含：只读、编辑、审批。权限粒度到页面级。角色变更后实时生效。",
+        "output": "生成 31 条用例，覆盖角色分配/切换/删除、权限校验、跨租户隔离、变更即时性等场景。"
+      }
+    ]
+  },
+  "copy": {
+    "success": "已复制到剪贴板",
+    "failure": "复制失败，请手动选择复制",
+    "precondition": "前置条件：",
+    "expectedLabel": "预期：",
+    "priority": "优先级：",
+    "type": "类型："
+  },
+  "excel": {
+    "sheet": "测试用例",
+    "colId": "用例编号",
+    "colTitle": "用例标题",
+    "colPrecondition": "前置条件",
+    "colSteps": "测试步骤",
+    "colExpected": "预期结果",
+    "colPriority": "优先级",
+    "colType": "类型",
+    "filename": "测试用例_{title}.xlsx",
+    "error": "导出失败，请重试"
+  },
+  "lang": {
+    "toggle": "EN"
+  },
+  "notFound": {
+    "title": "页面未找到",
+    "description": "你访问的页面不存在，请检查地址是否正确。",
+    "home": "返回首页"
+  }
+}

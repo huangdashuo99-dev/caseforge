@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import { useTranslations, useLocale } from "next-intl";
+import { Link } from "@/i18n/navigation";
 
 interface TestCase {
   id: string;
@@ -27,25 +29,10 @@ interface Result {
 
 const MAX_CHARS = 10000;
 
-const EXAMPLES = [
-  {
-    title: "用户登录功能",
-    input: "用户登录功能需求：支持用户名+密码登录。连续输错密码3次，锁定账号30分钟。支持\"记住我\"功能，有效期7天。",
-    output: "生成 23 条用例，覆盖正常登录、密码错误、账号锁定、记住我、密码为空、SQL注入防护等场景。",
-  },
-  {
-    title: "订单优惠券叠加",
-    input: "用户下单页面，支持输入优惠码。优惠码可叠加使用，最多叠加2张。每张优惠码有最低消费门槛。",
-    output: "生成 18 条用例，覆盖单张/双张使用、门槛判断、叠加超限、过期码、并发使用等场景。",
-  },
-  {
-    title: "权限管理模块",
-    input: "管理员可以为子账号分配角色权限。角色包含：只读、编辑、审批。权限粒度到页面级。角色变更后实时生效。",
-    output: "生成 31 条用例，覆盖角色分配/切换/删除、权限校验、跨租户隔离、变更即时性等场景。",
-  },
-];
-
 export default function Home() {
+  const t = useTranslations();
+  const locale = useLocale();
+
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -64,9 +51,10 @@ export default function Home() {
     }
   }, []);
 
-  // Auto-save result to localStorage
+  // Auto-save result to localStorage (locale-scoped)
+  const storageKey = `testpilot-${locale}-last-result`;
   useEffect(() => {
-    const saved = localStorage.getItem("testpilot-last-result");
+    const saved = localStorage.getItem(storageKey);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -75,15 +63,15 @@ export default function Home() {
         }
       } catch { /* ignore */ }
     }
-  }, []);
+  }, [storageKey]);
 
   useEffect(() => {
     if (result) {
       try {
-        localStorage.setItem("testpilot-last-result", JSON.stringify(result));
+        localStorage.setItem(storageKey, JSON.stringify(result));
       } catch { /* localStorage full - ignore */ }
     }
-  }, [result]);
+  }, [result, storageKey]);
 
   // Scroll to edit panel when opening
   useEffect(() => {
@@ -98,7 +86,7 @@ export default function Home() {
 
   const handleSubmit = useCallback(async () => {
     if (!text.trim()) {
-      setError("请输入需求描述");
+      setError(t("input.error"));
       return;
     }
     setError("");
@@ -109,20 +97,20 @@ export default function Home() {
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: text.slice(0, MAX_CHARS) }),
+        body: JSON.stringify({ text: text.slice(0, MAX_CHARS), locale }),
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || "生成失败，请重试");
+        setError(data.error || t("error.fallback"));
       } else {
         setResult(data);
       }
     } catch {
-      setError("网络错误，请检查连接后重试");
+      setError(t("error.networkError"));
     } finally {
       setLoading(false);
     }
-  }, [text]);
+  }, [text, t, locale]);
 
   const updateTestCase = useCallback(
     (id: string, field: string, value: string | string[]) => {
@@ -141,8 +129,8 @@ export default function Home() {
     setResult(null);
     setText("");
     setEditingId(null);
-    localStorage.removeItem("testpilot-last-result");
-  }, []);
+    localStorage.removeItem(storageKey);
+  }, [storageKey]);
 
   const copyText = useCallback(async () => {
     if (!result) return;
@@ -150,34 +138,34 @@ export default function Home() {
       (tc) => {
         const steps = Array.isArray(tc.steps) ? tc.steps : [tc.steps];
         const expected = Array.isArray(tc.expected) ? tc.expected : [tc.expected];
-        const pairs = steps.map((s, i) => `${i + 1}. ${s}  →  预期：${expected[i] || "-"}`).join("\n");
-        return `[${tc.id}] ${tc.title}\n前置条件：${tc.precondition}\n测试步骤 → 预期：\n${pairs}\n优先级：${tc.priority} | 类型：${tc.type}\n`;
+        const pairs = steps.map((s, i) => `${i + 1}. ${s}  →  ${t("copy.expectedLabel")}${expected[i] || "-"}`).join("\n");
+        return `[${tc.id}] ${tc.title}\n${t("copy.precondition")}${tc.precondition}\n${t("table.steps") || "Test Steps"} → ${t("copy.expectedLabel")}\n${pairs}\n${t("copy.priority")}${tc.priority} | ${t("copy.type")}${tc.type}\n`;
       }
     );
     const textContent = `# ${result.title}\n${result.summary}\n\n${lines.join("\n")}`;
     try {
       await navigator.clipboard.writeText(textContent);
-      setToast("已复制到剪贴板");
+      setToast(t("copy.success"));
     } catch {
-      setToast("复制失败，请手动选择复制");
+      setToast(t("copy.failure"));
     }
     setTimeout(() => setToast(""), 2500);
-  }, [result]);
+  }, [result, t]);
 
   const downloadExcel = useCallback(async () => {
     if (!result) return;
     try {
       const ExcelJS = (await import("exceljs")).default;
       const wb = new ExcelJS.Workbook();
-      const ws = wb.addWorksheet("测试用例");
+      const ws = wb.addWorksheet(t("excel.sheet"));
       ws.columns = [
-        { header: "用例编号", key: "id", width: 10 },
-        { header: "用例标题", key: "title", width: 30 },
-        { header: "前置条件", key: "precondition", width: 25 },
-        { header: "测试步骤", key: "steps", width: 40 },
-        { header: "预期结果", key: "expected", width: 30 },
-        { header: "优先级", key: "priority", width: 8 },
-        { header: "类型", key: "type", width: 10 },
+        { header: t("excel.colId"), key: "id", width: 10 },
+        { header: t("excel.colTitle"), key: "title", width: 30 },
+        { header: t("excel.colPrecondition"), key: "precondition", width: 25 },
+        { header: t("excel.colSteps"), key: "steps", width: 40 },
+        { header: t("excel.colExpected"), key: "expected", width: 30 },
+        { header: t("excel.colPriority"), key: "priority", width: 8 },
+        { header: t("excel.colType"), key: "type", width: 10 },
       ];
       result.testCases.forEach((tc) => {
         const steps = Array.isArray(tc.steps) ? tc.steps : [tc.steps];
@@ -196,26 +184,39 @@ export default function Home() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `测试用例_${result.title || "export"}.xlsx`;
+      a.download = t("excel.filename", { title: result.title || "export" });
       a.click();
       URL.revokeObjectURL(url);
     } catch {
-      setToast("导出失败，请重试");
+      setToast(t("excel.error"));
       setTimeout(() => setToast(""), 2500);
     }
-  }, [result]);
+  }, [result, t]);
 
   const charCount = text.length;
   const isOver = charCount > MAX_CHARS;
+  const types = t.raw("types") as string[];
+
+  // Get examples from translations
+  const examples = t.raw("examples.items") as Array<{ title: string; input: string; output: string }>;
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
       {/* Header */}
       <header className="mb-8">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">TestPilot</h1>
-          <p className="text-zinc-500 mt-1">测试用例生成器 — 输入需求，即刻生成结构化用例</p>
-          <p className="text-zinc-400 text-sm mt-1">输入需求，自动生成结构化测试用例。覆盖正向、边界值、异常场景。</p>
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">TestPilot</h1>
+            <p className="text-zinc-500 mt-1">{t("header.subtitle")}</p>
+            <p className="text-zinc-400 text-sm mt-1">{t("header.tagline")}</p>
+          </div>
+          <Link
+            href="/"
+            locale={locale === "zh" ? "en" : "zh"}
+            className="px-3 py-1.5 rounded-lg border border-zinc-200 text-zinc-600 text-sm font-medium hover:bg-zinc-50 transition-colors shrink-0"
+          >
+            {t("lang.toggle")}
+          </Link>
         </div>
       </header>
 
@@ -225,12 +226,12 @@ export default function Home() {
           ref={textareaRef}
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="粘贴你的 PRD 或需求描述 …&#10;&#10;例如：用户下单页面，支持优惠码叠加使用，最多2张，每张有最低消费门槛。"
+          placeholder={t("input.placeholder")}
           className={`w-full min-h-40 p-3 border rounded-lg text-sm resize-y focus:outline-none focus:ring-2 focus:ring-blue-500 ${isOver ? "border-red-400" : "border-zinc-200"}`}
           rows={8}
         />
         <div className="flex justify-between items-center mt-2 text-xs text-zinc-400">
-          <span>{charCount} / {MAX_CHARS}{isOver && " — 已超限，提交时自动截断"}</span>
+          <span>{charCount} / {MAX_CHARS}{isOver && t("input.charOver")}</span>
         </div>
 
         <button
@@ -238,7 +239,7 @@ export default function Home() {
           disabled={loading}
           className="mt-3 w-full py-2.5 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
         >
-          {loading ? "正在分析需求并生成用例…" : "生成测试用例"}
+          {loading ? t("input.submitting") : t("input.submit")}
         </button>
       </div>
 
@@ -254,20 +255,20 @@ export default function Home() {
               ))}
             </div>
           </div>
-          <p className="mt-4 text-sm text-zinc-400">正在分析需求并生成用例…</p>
+          <p className="mt-4 text-sm text-zinc-400">{t("loading.message")}</p>
         </div>
       )}
 
       {/* Error state */}
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
-          <p className="text-red-700 font-medium mb-2">生成失败</p>
+          <p className="text-red-700 font-medium mb-2">{t("error.title")}</p>
           <p className="text-red-500 text-sm mb-4">{error}</p>
           <button
             onClick={handleSubmit}
             className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm hover:bg-red-700 transition-colors"
           >
-            重试
+            {t("error.retry")}
           </button>
         </div>
       )}
@@ -292,20 +293,20 @@ export default function Home() {
               onClick={clearResult}
               className="px-4 py-2 rounded-lg border border-zinc-200 text-zinc-600 text-sm font-medium hover:bg-zinc-50 transition-colors"
             >
-              新需求
+              {t("toolbar.new")}
             </button>
             <div className="flex gap-3">
               <button
                 onClick={copyText}
                 className="px-4 py-2 rounded-lg border border-zinc-200 text-zinc-600 text-sm font-medium hover:bg-zinc-50 transition-colors"
               >
-                复制用例
+                {t("toolbar.copy")}
               </button>
               <button
                 onClick={downloadExcel}
                 className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors"
               >
-                下载 Excel
+                {t("toolbar.download")}
               </button>
             </div>
           </div>
@@ -316,11 +317,11 @@ export default function Home() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-zinc-200 bg-zinc-50">
-                    <th className="text-left p-3 w-20">用例编号</th>
-                    <th className="text-left p-3 w-92">用例标题</th>
-                    <th className="text-left p-3 w-24">优先级</th>
-                    <th className="text-left p-3 w-24">类型</th>
-                    <th className="text-left p-3">操作</th>
+                    <th className="text-left p-3 w-20">{t("table.id")}</th>
+                    <th className="text-left p-3 w-92">{t("table.title")}</th>
+                    <th className="text-left p-3 w-24">{t("table.priority")}</th>
+                    <th className="text-left p-3 w-24">{t("table.type")}</th>
+                    <th className="text-left p-3">{t("table.action")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -343,7 +344,7 @@ export default function Home() {
                           onClick={() => setEditingId(editingId === tc.id ? null : tc.id)}
                           className="text-blue-600 hover:text-blue-800 text-xs font-medium"
                         >
-                          {editingId === tc.id ? "收起" : "编辑"}
+                          {editingId === tc.id ? t("table.collapse") : t("table.edit")}
                         </button>
                       </td>
                     </tr>
@@ -358,10 +359,10 @@ export default function Home() {
             const tc = result.testCases.find((t) => t.id === editingId)!;
             return (
               <div className={`bg-white rounded-xl border-2 p-5 transition-colors duration-700 ${editHighlight ? "border-blue-400 bg-blue-50/50" : "border-blue-200"}`} ref={editRef}>
-                <h3 className="text-sm font-semibold mb-3">编辑 {tc.id}</h3>
+                <h3 className="text-sm font-semibold mb-3">{t("edit.heading", { id: tc.id })}</h3>
                 <div className="space-y-3">
                   <div>
-                    <label className="text-xs text-zinc-400 block mb-1">用例标题</label>
+                    <label className="text-xs text-zinc-400 block mb-1">{t("edit.caseTitle")}</label>
                     <input
                       value={tc.title}
                       onChange={(e) => updateTestCase(tc.id, "title", e.target.value)}
@@ -369,7 +370,7 @@ export default function Home() {
                     />
                   </div>
                   <div>
-                    <label className="text-xs text-zinc-400 block mb-1">前置条件</label>
+                    <label className="text-xs text-zinc-400 block mb-1">{t("edit.precondition")}</label>
                     <input
                       value={tc.precondition}
                       onChange={(e) => updateTestCase(tc.id, "precondition", e.target.value)}
@@ -377,7 +378,7 @@ export default function Home() {
                     />
                   </div>
                   <div>
-                    <label className="text-xs text-zinc-400 block mb-1">测试步骤</label>
+                    <label className="text-xs text-zinc-400 block mb-1">{t("edit.steps")}</label>
                     <div className="space-y-1.5">
                       {(Array.isArray(tc.steps) ? tc.steps : [tc.steps]).map((step, i) => (
                         <div key={i} className="flex gap-2 items-start">
@@ -398,7 +399,7 @@ export default function Home() {
                               updateTestCase(tc.id, "steps", steps.length > 0 ? steps : [""]);
                             }}
                             className="text-sm text-zinc-300 hover:text-red-500 w-6 h-6 flex items-center justify-center hover:bg-red-50 rounded shrink-0 transition-colors"
-                            title="删除此测试步骤"
+                            title={t("edit.deleteStep")}
                           >
                             ×
                           </button>
@@ -411,12 +412,12 @@ export default function Home() {
                         }}
                         className="text-xs text-blue-500 hover:text-blue-700 transition-colors"
                       >
-                        + 添加测试步骤
+                        {t("edit.addStep")}
                       </button>
                     </div>
                   </div>
                   <div>
-                    <label className="text-xs text-zinc-400 block mb-1">预期结果</label>
+                    <label className="text-xs text-zinc-400 block mb-1">{t("edit.expected")}</label>
                     <div className="space-y-1.5">
                       {(Array.isArray(tc.expected) ? tc.expected : [tc.expected]).map((exp, i) => (
                         <div key={i} className="flex gap-2 items-start">
@@ -437,7 +438,7 @@ export default function Home() {
                               updateTestCase(tc.id, "expected", expected.length > 0 ? expected : [""]);
                             }}
                             className="text-sm text-zinc-300 hover:text-red-500 w-6 h-6 flex items-center justify-center hover:bg-red-50 rounded shrink-0 transition-colors"
-                            title="删除此预期"
+                            title={t("edit.deleteExpected")}
                           >
                             ×
                           </button>
@@ -450,13 +451,13 @@ export default function Home() {
                         }}
                         className="text-xs text-blue-500 hover:text-blue-700 transition-colors"
                       >
-                        + 添加预期
+                        {t("edit.addExpected")}
                       </button>
                     </div>
                   </div>
                   <div className="flex gap-3">
                     <div className="flex-1">
-                      <label className="text-xs text-zinc-400 block mb-1">优先级</label>
+                      <label className="text-xs text-zinc-400 block mb-1">{t("edit.priority")}</label>
                       <select
                         value={tc.priority}
                         onChange={(e) => updateTestCase(tc.id, "priority", e.target.value)}
@@ -468,14 +469,14 @@ export default function Home() {
                       </select>
                     </div>
                     <div className="flex-1">
-                      <label className="text-xs text-zinc-400 block mb-1">类型</label>
+                      <label className="text-xs text-zinc-400 block mb-1">{t("edit.type")}</label>
                       <select
                         value={tc.type}
                         onChange={(e) => updateTestCase(tc.id, "type", e.target.value)}
                         className="w-full p-2 border border-zinc-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                       >
-                        {["功能", "边界值", "异常", "兼容性", "性能"].map((t) => (
-                          <option key={t} value={t}>{t}</option>
+                        {types.map((tp) => (
+                          <option key={tp} value={tp}>{tp}</option>
                         ))}
                       </select>
                     </div>
@@ -488,12 +489,12 @@ export default function Home() {
           {/* Fuzzy Points */}
           {result.fuzzyPoints.length > 0 && (
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-5">
-              <h3 className="text-sm font-semibold text-amber-800 mb-2">规则模糊点</h3>
+              <h3 className="text-sm font-semibold text-amber-800 mb-2">{t("fuzzy.title")}</h3>
               <ul className="space-y-2">
                 {result.fuzzyPoints.map((fp, i) => (
                   <li key={i} className="text-sm text-amber-700">
                     <p>{fp.description}</p>
-                    {fp.suggestion && <p className="text-xs text-amber-500 mt-0.5">建议：{fp.suggestion}</p>}
+                    {fp.suggestion && <p className="text-xs text-amber-500 mt-0.5">{t("fuzzy.suggestion", { suggestion: fp.suggestion })}</p>}
                   </li>
                 ))}
               </ul>
@@ -508,52 +509,44 @@ export default function Home() {
         <div className="space-y-6 mt-4">
           {/* Feature Showcase */}
           <div>
-            <h2 className="text-sm font-semibold mb-4">核心能力</h2>
+            <h2 className="text-sm font-semibold mb-4">{t("features.title")}</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="bg-white rounded-xl border border-zinc-200 p-4">
                 <div className="text-lg mb-1">⚡</div>
-                <h3 className="text-sm font-semibold">即时生成</h3>
-                <p className="text-xs text-zinc-500 mt-1">
-                  粘贴 PRD 或需求描述，AI 自动解析并生成结构化测试用例，覆盖功能、边界值、异常等场景。
-                </p>
+                <h3 className="text-sm font-semibold">{t("features.instant.name")}</h3>
+                <p className="text-xs text-zinc-500 mt-1">{t("features.instant.desc")}</p>
               </div>
               <div className="bg-white rounded-xl border border-zinc-200 p-4">
                 <div className="text-lg mb-1">✏️</div>
-                <h3 className="text-sm font-semibold">内联编辑</h3>
-                <p className="text-xs text-zinc-500 mt-1">
-                  点击表格中的任意用例即可展开编辑面板，直接修改标题、步骤、预期结果、优先级和类型，无需弹窗或跳转。
-                </p>
+                <h3 className="text-sm font-semibold">{t("features.edit.name")}</h3>
+                <p className="text-xs text-zinc-500 mt-1">{t("features.edit.desc")}</p>
               </div>
               <div className="bg-white rounded-xl border border-zinc-200 p-4">
                 <div className="text-lg mb-1">🔍</div>
-                <h3 className="text-sm font-semibold">规则盲区识别</h3>
-                <p className="text-xs text-zinc-500 mt-1">
-                  自动检测需求中的模糊地带与未定义边界，标记出来并给出补充建议，避免遗漏关键测试场景。
-                </p>
+                <h3 className="text-sm font-semibold">{t("features.fuzzy.name")}</h3>
+                <p className="text-xs text-zinc-500 mt-1">{t("features.fuzzy.desc")}</p>
               </div>
               <div className="bg-white rounded-xl border border-zinc-200 p-4">
                 <div className="text-lg mb-1">📤</div>
-                <h3 className="text-sm font-semibold">一键导出</h3>
-                <p className="text-xs text-zinc-500 mt-1">
-                  支持复制 Markdown 文本和下载 Excel 文件，直接粘贴到 TAPD/Jira 或用 Excel 二次编辑。
-                </p>
+                <h3 className="text-sm font-semibold">{t("features.export.name")}</h3>
+                <p className="text-xs text-zinc-500 mt-1">{t("features.export.desc")}</p>
               </div>
             </div>
           </div>
 
           {/* Example Gallery */}
           <div className="bg-white rounded-xl border border-zinc-200 p-6">
-            <h2 className="text-sm font-semibold mb-3">示例</h2>
-            <p className="text-xs text-zinc-400 mb-4">以下是一些真实的输入输出示例，帮你了解 TestPilot 能做什么：</p>
+            <h2 className="text-sm font-semibold mb-3">{t("examples.title")}</h2>
+            <p className="text-xs text-zinc-400 mb-4">{t("examples.intro")}</p>
             <div className="space-y-4">
-              {EXAMPLES.map((ex, i) => (
+              {examples.map((ex, i) => (
                 <div key={i} className="border border-zinc-100 rounded-lg p-4">
                   <h3 className="text-sm font-medium text-blue-700">{ex.title}</h3>
                   <p className="text-xs text-zinc-500 mt-1">
-                    <span className="font-medium text-zinc-400">输入：</span>{ex.input}
+                    <span className="font-medium text-zinc-400">{t("examples.input")}</span>{ex.input}
                   </p>
                   <p className="text-xs text-zinc-500 mt-1">
-                    <span className="font-medium text-zinc-400">输出：</span>{ex.output}
+                    <span className="font-medium text-zinc-400">{t("examples.output")}</span>{ex.output}
                   </p>
                 </div>
               ))}

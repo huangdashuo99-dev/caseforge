@@ -14,6 +14,7 @@ interface CallAIProviderInput {
   systemPrompt: string
   userText: string
   images: string[]
+  locale?: string
 }
 
 interface AIMetadata {
@@ -40,7 +41,7 @@ export type AIResult = AIResultSuccess | AIResultError
 const PRIORITY_TARGETS: Record<string, number> = { P0: 0.05, P1: 0.15, P2: 0.30, P3: 0.45, P4: 0.05 }
 const PRIORITY_TOLERANCE = 0.05
 
-function validatePriorityDistribution(testCases: { priority: string }[]): {
+function validatePriorityDistribution(testCases: { priority: string }[], locale?: string): {
   valid: boolean
   message: string
   counts: Record<string, number>
@@ -49,6 +50,7 @@ function validatePriorityDistribution(testCases: { priority: string }[]): {
   const n = testCases.length
   if (n < 5) return { valid: true, message: '', counts: {}, expected: {} }
 
+  const isEn = locale === 'en'
   const counts: Record<string, number> = { P0: 0, P1: 0, P2: 0, P3: 0, P4: 0 }
   for (const tc of testCases) {
     if (counts[tc.priority] !== undefined) counts[tc.priority]++
@@ -60,9 +62,13 @@ function validatePriorityDistribution(testCases: { priority: string }[]): {
     const lower = p === 'P4' ? 0 : target - PRIORITY_TOLERANCE
     const upper = target + PRIORITY_TOLERANCE
     if (actual < lower) {
-      issues.push(`${p}实际${counts[p]}条(${Math.round(actual * 100)}%)，目标${Math.round(target * 100)}%，偏少`)
+      issues.push(isEn
+        ? `${p} has ${counts[p]} cases (${Math.round(actual * 100)}%), target ${Math.round(target * 100)}%, too few`
+        : `${p}实际${counts[p]}条(${Math.round(actual * 100)}%)，目标${Math.round(target * 100)}%，偏少`)
     } else if (actual > upper) {
-      issues.push(`${p}实际${counts[p]}条(${Math.round(actual * 100)}%)，目标${Math.round(target * 100)}%，偏多`)
+      issues.push(isEn
+        ? `${p} has ${counts[p]} cases (${Math.round(actual * 100)}%), target ${Math.round(target * 100)}%, too many`
+        : `${p}实际${counts[p]}条(${Math.round(actual * 100)}%)，目标${Math.round(target * 100)}%，偏多`)
     }
   }
 
@@ -120,6 +126,7 @@ async function tryProvider(
   systemPrompt: string,
   userText: string,
   images: string[],
+  locale?: string,
 ): Promise<{ success: true; data: TestCaseResult; tokens: number } | { success: false; error: string; tokens: number }> {
   let lastError = ''
   let tokens = 0
@@ -135,17 +142,20 @@ async function tryProvider(
         continue
       }
 
-      const parsed = parseTestCases(result.content)
+      const parsed = parseTestCases(result.content, locale)
       if (!parsed.success) {
         lastError = parsed.error
         continue
       }
 
-      const distCheck = validatePriorityDistribution(parsed.data.testCases)
+      const distCheck = validatePriorityDistribution(parsed.data.testCases, locale)
       if (!distCheck.valid && attempt === 0) {
         const exp = distCheck.expected
-        promptText = userText + '\n\n[重要系统指令] 上一版优先级分布不达标：' + distCheck.message +
-          '。本次必须调整优先级分布为：P0=' + exp.P0 + '条、P1=' + exp.P1 + '条、P2=' + exp.P2 + '条、P3=' + exp.P3 + '条、P4=' + exp.P4 + '条。用例内容和数量保持，仅调整优先级字段。'
+        const isEn = locale === 'en'
+        const retryPrompt = isEn
+          ? `\n\n[System instruction] Previous priority distribution did not meet targets: ${distCheck.message}. This attempt must adjust the priority distribution to: P0=${exp.P0}, P1=${exp.P1}, P2=${exp.P2}, P3=${exp.P3}, P4=${exp.P4} cases. Keep case content and count unchanged, only adjust the priority field.`
+          : `\n\n[重要系统指令] 上一版优先级分布不达标：${distCheck.message}。本次必须调整优先级分布为：P0=${exp.P0}条、P1=${exp.P1}条、P2=${exp.P2}条、P3=${exp.P3}条、P4=${exp.P4}条。用例内容和数量保持，仅调整优先级字段。`
+        promptText = userText + retryPrompt
         lastError = '优先级分布: ' + distCheck.message
         continue
       }
@@ -167,11 +177,15 @@ async function tryProvider(
 }
 
 export async function callAIProvider(input: CallAIProviderInput): Promise<AIResult> {
-  const { primary, fallback, systemPrompt, userText, images = [] } = input
+  const { primary, fallback, systemPrompt, userText, images = [], locale } = input
   const startTime = Date.now()
+  const isEn = locale === 'en'
+  const serviceUnavailableMsg = isEn
+    ? `Service temporarily unavailable, please try again later. Error details: `
+    : `服务暂时不可用，请稍后重试。错误详情: `
 
   // Try primary
-  const primaryResult = await tryProvider(primary, systemPrompt, userText, images)
+  const primaryResult = await tryProvider(primary, systemPrompt, userText, images, locale)
 
   if (primaryResult.success) {
     return {
@@ -188,7 +202,7 @@ export async function callAIProvider(input: CallAIProviderInput): Promise<AIResu
 
   // Try fallback
   if (fallback) {
-    const fallbackResult = await tryProvider(fallback, systemPrompt, userText, images)
+    const fallbackResult = await tryProvider(fallback, systemPrompt, userText, images, locale)
 
     if (fallbackResult.success) {
       return {
@@ -205,7 +219,7 @@ export async function callAIProvider(input: CallAIProviderInput): Promise<AIResu
 
     return {
       success: false,
-      error: `服务暂时不可用，请稍后重试。错误详情: ${primaryResult.error}`,
+      error: `${serviceUnavailableMsg}${primaryResult.error}`,
       metadata: {
         provider: primary.name,
         model: primary.model,
@@ -217,7 +231,7 @@ export async function callAIProvider(input: CallAIProviderInput): Promise<AIResu
 
   return {
     success: false,
-    error: `服务暂时不可用，请稍后重试。错误详情: ${primaryResult.error}`,
+    error: `${serviceUnavailableMsg}${primaryResult.error}`,
     metadata: {
       provider: primary.name,
       model: primary.model,

@@ -72,7 +72,7 @@ function fixJSON(text: string): string {
 }
 
 function stripTypeLabels(title: string): string {
-  // Remove type labels like 【正向】, [异常], (边界值) from title
+  // Remove type labels like 【正向】, [异常], (边界值), [Functional], [Exception] from title
   // These belong in the type field, not the title
   return title
     .replace(/[【\[\(（]正向(?:功能|场景)?[】\]\)）]\s*/g, '')
@@ -80,43 +80,66 @@ function stripTypeLabels(title: string): string {
     .replace(/[【\[\(（]异常(?:场景|情况)?[】\]\)）]\s*/g, '')
     .replace(/[【\[\(（]兼容性[】\]\)）]\s*/g, '')
     .replace(/[【\[\(（]性能[】\]\)）]\s*/g, '')
+    .replace(/\[(?:Functional|Boundary(?:\s+Value)?|Exception|Compatibility|Performance)\]\s*/gi, '')
     .trim()
 }
 
-function validateSchema(data: unknown): { valid: boolean; error?: string } {
+function getErrorMessages(locale?: string) {
+  const isEn = locale === 'en'
+  return {
+    parseEmpty: isEn ? 'Empty response content' : '返回内容为空',
+    parseRefusal: isEn
+      ? 'Cannot process this request, it may contain unsupported content. Please try rephrasing your requirements.'
+      : '无法处理此需求，可能包含不支持的内容。请尝试换个角度描述需求。',
+    parseNeedDetail: isEn
+      ? 'Requirements description is not detailed enough to generate cases. Please provide more specific details (20+ characters recommended).'
+      : '需求描述不够详细，无法生成用例。请提供更具体的功能描述（建议 20 字以上）。',
+    parseInvalidJson: isEn ? 'Invalid response format, please try again' : '返回格式异常，请重试',
+    parseNotObject: isEn ? 'Invalid response format (not a JSON object)' : '返回格式异常（非 JSON 对象）',
+    parseMissingTitle: isEn ? 'Response missing title field or title is empty' : '返回缺少 title 字段或为空',
+    parseMissingCases: isEn ? 'Response missing testCases array' : '返回缺少 testCases 数组',
+    parseNoCases: isEn
+      ? 'No cases generated, please try providing more detailed requirements'
+      : '未生成用例，请尝试提供更详细的需求描述',
+  }
+}
+
+function validateSchema(data: unknown, locale?: string): { valid: boolean; error?: string } {
+  const msgs = getErrorMessages(locale)
   if (!data || typeof data !== 'object') {
-    return { valid: false, error: '返回格式异常（非 JSON 对象）' }
+    return { valid: false, error: msgs.parseNotObject }
   }
   const obj = data as Record<string, unknown>
   if (typeof obj.title !== 'string' || !obj.title.trim()) {
-    return { valid: false, error: '返回缺少 title 字段或为空' }
+    return { valid: false, error: msgs.parseMissingTitle }
   }
   if (!Array.isArray(obj.testCases)) {
-    return { valid: false, error: '返回缺少 testCases 数组' }
+    return { valid: false, error: msgs.parseMissingCases }
   }
   if (obj.testCases.length === 0) {
-    return { valid: false, error: '未生成用例，请尝试提供更详细的需求描述' }
+    return { valid: false, error: msgs.parseNoCases }
   }
   return { valid: true }
 }
 
-export function parseTestCases(raw: string): ParseResult {
+export function parseTestCases(raw: string, locale?: string): ParseResult {
+  const msgs = getErrorMessages(locale)
   if (!raw || !raw.trim()) {
-    return { success: false, error: '返回内容为空', refusal: false }
+    return { success: false, error: msgs.parseEmpty, refusal: false }
   }
 
   const refusalType = detectRefusal(raw)
   if (refusalType === 'refusal') {
     return {
       success: false,
-      error: '无法处理此需求，可能包含不支持的内容。请尝试换个角度描述需求。',
+      error: msgs.parseRefusal,
       refusal: true,
     }
   }
   if (refusalType === 'need_more_detail') {
     return {
       success: false,
-      error: '需求描述不够详细，无法生成用例。请提供更具体的功能描述（建议 20 字以上）。',
+      error: msgs.parseNeedDetail,
       refusal: true,
     }
   }
@@ -132,11 +155,11 @@ export function parseTestCases(raw: string): ParseResult {
       const fixed = fixJSON(cleaned)
       parsed = JSON.parse(fixed)
     } catch {
-      return { success: false, error: '返回格式异常，请重试', refusal: false }
+      return { success: false, error: msgs.parseInvalidJson, refusal: false }
     }
   }
 
-  const validation = validateSchema(parsed)
+  const validation = validateSchema(parsed, locale)
   if (!validation.valid) {
     return { success: false, error: validation.error!, refusal: false }
   }
