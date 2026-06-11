@@ -1,0 +1,128 @@
+{
+  "meta": {
+    "title": "TestPilot — Paste Requirements, Get Structured Test Cases Instantly",
+    "description": "Paste your requirements and instantly generate structured test cases. Covers positive, boundary, and exception scenarios."
+  },
+  "header": {
+    "subtitle": "Test Case Generator — Paste requirements, get structured cases instantly",
+    "tagline": "Paste your requirements and automatically generate structured test cases. Covers positive, boundary, and exception scenarios."
+  },
+  "input": {
+    "placeholder": "Paste your PRD or requirements description…\n\nExample: User checkout page, supports coupon code stacking, max 2 codes, each with a minimum spend threshold.",
+    "submit": "Generate Test Cases",
+    "submitting": "Analyzing requirements and generating cases…",
+    "error": "Please enter a requirements description",
+    "charOver": " — over limit, will be truncated on submit"
+  },
+  "loading": {
+    "message": "Analyzing requirements and generating cases…"
+  },
+  "error": {
+    "title": "Generation Failed",
+    "fallback": "Generation failed, please try again",
+    "networkError": "Network error, please check your connection and retry",
+    "retry": "Retry"
+  },
+  "toolbar": {
+    "new": "New Request",
+    "copy": "Copy Cases",
+    "download": "Download Excel"
+  },
+  "table": {
+    "id": "Case ID",
+    "title": "Case Title",
+    "priority": "Priority",
+    "type": "Type",
+    "action": "Actions",
+    "edit": "Edit",
+    "collapse": "Collapse"
+  },
+  "edit": {
+    "heading": "Edit {id}",
+    "caseTitle": "Case Title",
+    "precondition": "Precondition",
+    "steps": "Test Steps",
+    "expected": "Expected Result",
+    "addStep": "+ Add Test Step",
+    "addExpected": "+ Add Expected Result",
+    "priority": "Priority",
+    "type": "Type",
+    "deleteStep": "Delete this test step",
+    "deleteExpected": "Delete this expected result"
+  },
+  "types": ["Functional", "Boundary", "Exception", "Compatibility", "Performance"],
+  "fuzzy": {
+    "title": "Ambiguous Requirements",
+    "suggestion": "Suggestion: {suggestion}"
+  },
+  "features": {
+    "title": "Core Capabilities",
+    "instant": {
+      "name": "Instant Generation",
+      "desc": "Paste your PRD or requirements description, and AI automatically parses and generates structured test cases covering functional, boundary, and exception scenarios."
+    },
+    "edit": {
+      "name": "Inline Editing",
+      "desc": "Click any case in the table to expand the edit panel. Modify title, steps, expected results, priority, and type directly — no popups or page navigation needed."
+    },
+    "fuzzy": {
+      "name": "Ambiguity Detection",
+      "desc": "Automatically detects vague areas and undefined boundaries in requirements, highlights them with suggestions to avoid missing critical test scenarios."
+    },
+    "export": {
+      "name": "One-Click Export",
+      "desc": "Supports copying as Markdown text and downloading as an Excel file. Paste directly into Jira or edit further in Excel."
+    }
+  },
+  "examples": {
+    "title": "Examples",
+    "intro": "Here are some real input/output examples to help you understand what TestPilot can do:",
+    "input": "Input: ",
+    "output": "Output: ",
+    "items": [
+      {
+        "title": "User Login",
+        "input": "User login requirements: support username + password login. Lock account for 30 minutes after 3 consecutive wrong passwords. Support \"Remember Me\" with 7-day validity.",
+        "output": "Generated 23 cases covering normal login, wrong password, account lockout, Remember Me, empty password, SQL injection protection, and more."
+      },
+      {
+        "title": "Coupon Code Stacking",
+        "input": "User checkout page, supports entering coupon codes. Coupon codes can be stacked, max 2 codes. Each coupon code has a minimum spend threshold.",
+        "output": "Generated 18 cases covering single/dual code usage, threshold validation, stacking limit exceeded, expired codes, concurrent usage, and more."
+      },
+      {
+        "title": "Role-Based Access Control",
+        "input": "Admin can assign role permissions to sub-accounts. Roles include: Read-Only, Editor, Approver. Permission granularity is at page level. Role changes take effect immediately.",
+        "output": "Generated 31 cases covering role assignment/switching/deletion, permission validation, cross-tenant isolation, immediate effect of changes, and more."
+      }
+    ]
+  },
+  "copy": {
+    "success": "Copied to clipboard",
+    "failure": "Copy failed, please select and copy manually",
+    "precondition": "Precondition: ",
+    "expectedLabel": "Expected: ",
+    "priority": "Priority: ",
+    "type": "Type: "
+  },
+  "excel": {
+    "sheet": "Test Cases",
+    "colId": "Case ID",
+    "colTitle": "Case Title",
+    "colPrecondition": "Precondition",
+    "colSteps": "Test Steps",
+    "colExpected": "Expected Result",
+    "colPriority": "Priority",
+    "colType": "Type",
+    "filename": "test-cases_{title}.xlsx",
+    "error": "Export failed, please try again"
+  },
+  "lang": {
+    "toggle": "中文"
+  },
+  "notFound": {
+    "title": "Page Not Found",
+    "description": "The page you are looking for does not exist. Please check the URL and try again.",
+    "home": "Go Home"
+  }
+}

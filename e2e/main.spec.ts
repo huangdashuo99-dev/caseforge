@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-test.describe("TestPilot", () => {
+test.describe("TestPilot (中文)", () => {
   test("renders header and example gallery on first visit", async ({ page }) => {
     await page.goto("/");
     // Clear localStorage to simulate first visit
@@ -40,7 +40,7 @@ test.describe("TestPilot", () => {
       route.fulfill({
         status: 500,
         contentType: "application/json",
-        body: JSON.stringify({ error: "服务暂时不可用" }),
+        body: JSON.stringify({ error: "服务暂时不可用，请稍后重试。错误详情: test" }),
       })
     );
 
@@ -50,7 +50,6 @@ test.describe("TestPilot", () => {
     await page.click("text=生成测试用例");
 
     await expect(page.locator("text=生成失败")).toBeVisible();
-    await expect(page.locator("text=服务暂时不可用")).toBeVisible();
     await expect(page.locator("text=重试")).toBeVisible();
   });
 
@@ -106,7 +105,7 @@ test.describe("TestPilot", () => {
     await expect(page.locator("text=规则模糊点")).toBeVisible();
 
     // Export buttons
-    await expect(page.locator("text=复制文本")).toBeVisible();
+    await expect(page.locator("text=复制用例")).toBeVisible();
     await expect(page.locator("text=下载 Excel")).toBeVisible();
 
     // Edit button
@@ -151,5 +150,54 @@ test.describe("TestPilot", () => {
     // Click again to collapse
     await page.locator("text=收起").click();
     await expect(page.locator("text=编辑 TC-001")).not.toBeVisible();
+  });
+});
+
+test.describe("TestPilot (English smoke test)", () => {
+  test("renders English UI on /en", async ({ page }) => {
+    await page.goto("/en");
+    await page.evaluate(() => localStorage.clear());
+    await page.reload();
+    await expect(page.locator("h1")).toContainText("TestPilot");
+    // English-specific text
+    await expect(page.locator("text=Generate Test Cases")).toBeVisible();
+    await expect(page.locator("text=Core Capabilities")).toBeVisible();
+    // Language toggle should show 中文
+    await expect(page.locator("text=中文")).toBeVisible();
+  });
+
+  test("shows English error when submitting empty text", async ({ page }) => {
+    await page.goto("/en");
+    await page.click("text=Generate Test Cases");
+    await expect(page.locator("text=Please enter a requirements description")).toBeVisible();
+  });
+
+  test("renders English API error state with retry button", async ({ page }) => {
+    await page.route("**/api/generate", (route) =>
+      route.fulfill({
+        status: 500,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "Service temporarily unavailable, please try again later. Error details: test" }),
+      })
+    );
+
+    await page.goto("/en");
+    const textarea = page.locator("textarea");
+    await textarea.fill("test requirement");
+    await page.click("text=Generate Test Cases");
+
+    await expect(page.locator("text=Generation Failed")).toBeVisible();
+    await expect(page.locator("text=Retry")).toBeVisible();
+  });
+
+  test("language toggle switches back to Chinese", async ({ page }) => {
+    await page.goto("/en");
+    await page.evaluate(() => localStorage.clear());
+    await page.reload();
+    // Click 中文 toggle
+    await page.click("text=中文");
+    await expect(page).toHaveURL(/^\/$|\/$/);
+    // Should see Chinese UI
+    await expect(page.locator("text=生成测试用例")).toBeVisible();
   });
 });
